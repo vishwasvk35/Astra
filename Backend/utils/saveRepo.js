@@ -137,21 +137,30 @@ async function saveScannedRepo(repoData) {
 
 async function scanDependencyDetails(repoCode) {
   // Re-scan dependencies for an existing repo without creating a new Repo entry
+  console.log(`[SCAN_DETAILS] Starting scan for repoCode: ${repoCode}`);
   let parsersInitialized = false;
   try {
     await initParsers();
     parsersInitialized = true;
+    console.log('[SCAN_DETAILS] Parsers initialized successfully');
   } catch (initError) {
-    
+    console.warn('[SCAN_DETAILS] Failed to initialize parsers:', initError.message);
   }
 
   const repo = await Repo.findOne({ repoCode });
   if (!repo) {
+    console.error(`[SCAN_DETAILS] Repo not found: ${repoCode}`);
     throw new Error(`Repo with code ${repoCode} not found`);
   }
+  console.log(`[SCAN_DETAILS] Found repo: ${repo.name} at path: ${repo.path}`);
 
   const manifests = findManifestFiles(repo.path);
+  console.log(`[SCAN_DETAILS] Found ${manifests.length} manifest files`);
+  if (manifests.length === 0) {
+    console.warn(`[SCAN_DETAILS] No manifest files found in ${repo.path}`);
+  }
   const repoData = buildRepoData(repo.userCode, repo.path, manifests, repo.name);
+  console.log(`[SCAN_DETAILS] Found ${Object.keys(repoData.rawDependencies || {}).length} dependencies`);
 
   // Update repo metadata
   repo.packageManagers = repoData.packageManagers || [];

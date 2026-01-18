@@ -176,7 +176,7 @@ Frontend (`Frontend/package.json`):
 ### Authors
 | GitHub |
 | --- |
-| [mahil-2040](https://github.com/mahil-2040) |
+| [vishwasvk35](https://github.com/vishwasvk35) |
 | [Random-Pikachu](https://github.com/Random-Pikachu) |
 
 ---

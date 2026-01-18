@@ -25,6 +25,7 @@ const IGNORED_DIRS = new Set([
 
 function findManifestFiles(dir) {
   try {
+    console.log(`[REPO_SCANNER] Scanning directory: ${dir}`);
     let manifests = [];
     function walk(currentPath) {
       try {
@@ -39,19 +40,24 @@ function findManifestFiles(dir) {
                 walk(fullPath);
               }
             } else if (SUPPORTED_MANIFESTS[file]) {
+              console.log(`[REPO_SCANNER] Found manifest: ${fullPath}`);
               manifests.push(fullPath);
             }
           } catch (fileError) {
+            console.warn(`[REPO_SCANNER] Error reading file ${file}:`, fileError.message);
             // Continue with other files
           }
         }
       } catch (dirError) {
+        console.warn(`[REPO_SCANNER] Error reading directory ${currentPath}:`, dirError.message);
         // Continue with other directories
       }
     }
     walk(dir);
+    console.log(`[REPO_SCANNER] Scan complete. Found ${manifests.length} manifests`);
     return manifests;
   } catch (error) {
+    console.error('[REPO_SCANNER] Critical error in findManifestFiles:', error);
     return [];
   }
 }

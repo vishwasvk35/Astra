@@ -8,7 +8,13 @@ declare global {
     electronAPI: {
       showOpenDialog: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>;
     };
+    showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
   }
+}
+
+interface FileSystemDirectoryHandle {
+  name: string;
+  kind: 'directory';
 }
 
 interface AddRepositoryModalProps {
@@ -26,9 +32,17 @@ const AddRepositoryModal: React.FC<AddRepositoryModalProps> = ({
   const [selectedPath, setSelectedPath] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isWebMode, setIsWebMode] = useState(false);
+
+  // Check if running in Electron or browser
+  const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
+  const hasFileSystemAccess = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
   const handleBrowseClick = async () => {
     try {
+      setError(null);
+      
+      // Option 1: Electron desktop app (full path access)
       if (window.electronAPI) {
         const result = await window.electronAPI.showOpenDialog({
           properties: ['openDirectory'],
@@ -38,18 +52,38 @@ const AddRepositoryModal: React.FC<AddRepositoryModalProps> = ({
         if (!result.canceled && result.filePaths.length > 0) {
           const fullPath = result.filePaths[0];
           const directoryName = fullPath.split(/[\\/]/).pop() || 'Unknown';
-          
           const normalizedPath = fullPath.replace(/\\/g, '/');
           
           setRepositoryName(directoryName);
           setSelectedPath(normalizedPath);
         }
-      } else {
-        setError('Electron API not available. Please run in desktop app.');
+        return;
       }
+      
+      // Option 2: File System Access API (Chrome/Edge - folder name only)
+      if ('showDirectoryPicker' in window && window.showDirectoryPicker) {
+        try {
+          const dirHandle = await window.showDirectoryPicker();
+          setRepositoryName(dirHandle.name);
+          // Web browsers don't expose full path for security - switch to manual mode
+          setIsWebMode(true);
+          setError('Browser selected folder: "' + dirHandle.name + '". Please enter the full server path below.');
+        } catch (err: unknown) {
+          // User cancelled the picker
+          if (err instanceof Error && err.name === 'AbortError') return;
+          throw err;
+        }
+        return;
+      }
+      
+      // Option 3: No native folder picker available - use manual input
+      setIsWebMode(true);
+      setError('Folder picker not available. Please enter the repository path manually.');
+      
     } catch (error) {
       console.error('Error selecting folder:', error);
-      setError('Failed to select folder. Please try again.');
+      setError('Failed to select folder. Please try again or enter path manually.');
+      setIsWebMode(true);
     }
   };
 
@@ -90,6 +124,7 @@ const AddRepositoryModal: React.FC<AddRepositoryModalProps> = ({
     setRepositoryName('');
     setSelectedPath('');
     setError(null);
+    setIsWebMode(false);
     onClose();
   };
 
@@ -162,8 +197,29 @@ const AddRepositoryModal: React.FC<AddRepositoryModalProps> = ({
               </button>
             </div>
 
-            {selectedPath && (
-                             <div className="mt-3 p-2.5 rounded-lg border" style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'var(--border-color)' }}>
+            {/* Manual path input for web mode */}
+            {(isWebMode || !isElectron) && (
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-gray-400 mb-1.5 font-satoshi">
+                  Repository Path (on server)
+                </label>
+                <input
+                  type="text"
+                  value={selectedPath}
+                  onChange={(e) => setSelectedPath(e.target.value)}
+                  placeholder="/home/user/projects/my-repo"
+                  className="w-full px-3 py-2 rounded-lg text-white placeholder-gray-500 font-satoshi focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm border"
+                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'var(--border-color)' }}
+                />
+                <p className="text-xs text-gray-500 mt-1 font-satoshi">
+                  Enter the absolute path to your repository on the server
+                </p>
+              </div>
+            )}
+
+            {/* Show selected path for Electron mode */}
+            {selectedPath && isElectron && !isWebMode && (
+              <div className="mt-3 p-2.5 rounded-lg border" style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'var(--border-color)' }}>
                 <div className="flex items-center gap-2 text-xs text-gray-300">
                   <FolderIcon sx={{ fontSize: 14, color: '#6b7280' }} />
                   <span className="font-satoshi truncate"> {selectedPath}</span>

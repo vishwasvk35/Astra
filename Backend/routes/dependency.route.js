@@ -19,10 +19,15 @@ router.post("/scan/repo", async (req, res) => {
     if (!repoCode) {
       return res.status(400).json({ error: "repoCode is required" });
     }
+    console.log(`[SCAN] Starting scan for repoCode: ${repoCode}`);
     const repo = await scanRepoDependencies(repoCode);
+    console.log(`[SCAN] Scan completed successfully for repoCode: ${repoCode}`);
     res.json({ message: "Scan completed", repo });
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    console.error('[SCAN ERROR] Failed to scan repository:', error);
+    console.error('[SCAN ERROR] Error details:', error.message);
+    console.error('[SCAN ERROR] Stack trace:', error.stack);
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 

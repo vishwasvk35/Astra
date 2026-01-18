@@ -5,16 +5,20 @@ const { scanDependencyDetails } = require('../utils/saveRepo'); // Import the ne
 async function scanRepoDependencies(repoCode) {
   
   try {
-
+    console.log(`[CONTROLLER] Scanning dependencies for repoCode: ${repoCode}`);
     const result = await scanDependencyDetails(repoCode);
-    
-    
+    console.log(`[CONTROLLER] Scan result:`, result);
     
     // Return the repo with updated dependencies
     const repo = await Repo.findOne({ repoCode }).populate('dependencies');
+    if (!repo) {
+      throw new Error(`Repo with code ${repoCode} not found after scan`);
+    }
+    console.log(`[CONTROLLER] Successfully retrieved repo with ${repo.dependencies.length} dependencies`);
     return repo;
     
   } catch (error) {
+    console.error(`[CONTROLLER ERROR] Error scanning repo ${repoCode}:`, error.message);
     throw error;
   }
 }
